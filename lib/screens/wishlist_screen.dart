@@ -211,6 +211,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body:
           isLoading

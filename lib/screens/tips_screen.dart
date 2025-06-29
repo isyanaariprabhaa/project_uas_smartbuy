@@ -88,6 +88,7 @@ class TipsScreen extends StatelessWidget {
         backgroundColor: theme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: ListView.separated(
         padding: EdgeInsets.all(padding),
@@ -153,7 +154,14 @@ class TipsScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Add functionality to share tips
+          // Share all tips
+          final allTipsText = tips.map((tip) => 
+            '${tip["judul"]}: ${tip["deskripsi"]}'
+          ).join('\n\n');
+          
+          final shareText = '💡 Tips Hemat Belanja dari SmartBuy:\n\n$allTipsText\n\nDownload SmartBuy untuk mengelola wishlist dan anggaran belanja Anda!';
+          
+          Share.share(shareText, subject: 'Tips Hemat Belanja');
         },
         backgroundColor: theme.primaryColor,
         child: Icon(

@@ -73,6 +73,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -165,7 +166,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
                       // Bar Chart
                       Text(
-                        "📈 Tren Pengeluaran",
+                        "📈 Pengeluaran 7 Hari Terakhir",
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : Colors.black87,
@@ -186,30 +187,11 @@ class _StatistikScreenState extends State<StatistikScreen> {
                             ),
                           ],
                         ),
-                        child: totalHarga > 0 
-                          ? BarChartWidget(
-                              total: totalHarga,
-                              isDark: isDark,
-                            )
-                          : Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.bar_chart_rounded,
-                                    size: 48,
-                                    color: isDark ? Colors.grey[400] : Colors.grey[500],
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "Belum ada data pengeluaran",
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: isDark ? Colors.grey[400] : Colors.grey[500],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        child: BarChartWidget(
+                          total: totalHarga,
+                          isDark: isDark,
+                          purchasedItems: purchasedItems,
+                        ),
                       ),
                       const SizedBox(height: 32),
 
@@ -376,40 +358,52 @@ class _StatistikScreenState extends State<StatistikScreen> {
 class BarChartWidget extends StatelessWidget {
   final int total;
   final bool isDark;
+  final List<ItemBelanja> purchasedItems;
 
-  const BarChartWidget({required this.total, required this.isDark});
+  const BarChartWidget({
+    required this.total, 
+    required this.isDark,
+    required this.purchasedItems,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.primaryColor;
 
-    // Prevent division by zero
-    final maxY = total > 0 ? (total * 1.2).toDouble() : 100.0;
+    // Generate daily data for last 7 days
+    final dailyData = _generateDailyData();
+    final maxY = dailyData.values.fold(0.0, (max, value) => value > max ? value : max);
+    final chartMaxY = maxY > 0 ? (maxY * 1.2) : 100.0;
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.center,
-        maxY: maxY,
+        maxY: chartMaxY,
         minY: 0,
-        barGroups: [
-          BarChartGroupData(
-            x: 0,
+        barGroups: dailyData.entries.map((entry) {
+          final index = entry.key;
+          final value = entry.value;
+          // Map: 0 = 6 days ago (left), 6 = today (right)
+          return BarChartGroupData(
+            x: index,
             barRods: [
               BarChartRodData(
-                toY: total.toDouble(),
-                width: 40,
-                borderRadius: BorderRadius.circular(8),
-                color: isDark ? Colors.tealAccent : primaryColor,
+                toY: value,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+                color: value > 0 
+                    ? (isDark ? Colors.tealAccent : primaryColor)
+                    : (isDark ? Colors.white12 : Colors.grey[300]),
                 backDrawRodData: BackgroundBarChartRodData(
                   show: true,
-                  toY: maxY,
+                  toY: chartMaxY,
                   color: isDark ? Colors.white12 : Colors.grey[200],
                 ),
               ),
             ],
-          ),
-        ],
+          );
+        }).toList(),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -426,6 +420,7 @@ class BarChartWidget extends StatelessWidget {
                     ).format(value),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: isDark ? Colors.white60 : Colors.black54,
+                      fontSize: 10,
                     ),
                   ),
                 );
@@ -435,13 +430,26 @@ class BarChartWidget extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget:
-                  (value, meta) => Text(
-                    "Total Pengeluaran",
+              getTitlesWidget: (value, meta) {
+                // Calculate the date for each bar position
+                final now = DateTime.now();
+                final targetDate = now.subtract(Duration(days: 6 - value.toInt()));
+                
+                // Get day name in Indonesian
+                final dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                final dayIndex = targetDate.weekday % 7; // Convert to 0-based index
+                
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    dayNames[dayIndex],
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: isDark ? Colors.white60 : Colors.black54,
+                      fontSize: 10,
                     ),
                   ),
+                );
+              },
             ),
           ),
           rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -450,11 +458,10 @@ class BarChartWidget extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine:
-              (value) => FlLine(
-                color: isDark ? Colors.white10 : Colors.grey[200],
-                strokeWidth: 1,
-              ),
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: isDark ? Colors.white10 : Colors.grey[200],
+            strokeWidth: 1,
+          ),
         ),
         borderData: FlBorderData(
           show: true,
@@ -467,5 +474,52 @@ class BarChartWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Map<int, double> _generateDailyData() {
+    final Map<int, double> dailyData = {};
+    
+    // Initialize with 0 for last 7 days
+    for (int i = 0; i < 7; i++) {
+      dailyData[i] = 0.0;
+    }
+
+    // Get current date (start of day)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    print('Current date: ${today.day}-${today.month}-${today.year} (${today.weekday})');
+    
+    // Process purchased items
+    for (final item in purchasedItems) {
+      try {
+        // Parse item date (format: "dd-MM-yyyy")
+        final dateParts = item.tanggal.split('-');
+        if (dateParts.length == 3) {
+          final day = int.parse(dateParts[0]);
+          final month = int.parse(dateParts[1]);
+          final year = int.parse(dateParts[2]);
+          final itemDate = DateTime(year, month, day);
+          
+          // Calculate days difference (comparing dates only)
+          final difference = today.difference(itemDate).inDays;
+          
+          print('Item: ${item.nama}, Date: ${item.tanggal}, Difference: $difference days');
+          
+          // If item is within last 7 days
+          if (difference >= 0 && difference < 7) {
+            // Map to correct index: 0 = 6 days ago, 6 = today
+            final dayIndex = 6 - difference; // Reverse the mapping
+            dailyData[dayIndex] = (dailyData[dayIndex] ?? 0) + item.harga.toDouble();
+            print('Mapped to index: $dayIndex');
+          }
+        }
+      } catch (e) {
+        // Skip items with invalid date format
+        print('Error parsing date: ${item.tanggal} - $e');
+        continue;
+      }
+    }
+    
+    return dailyData;
   }
 }

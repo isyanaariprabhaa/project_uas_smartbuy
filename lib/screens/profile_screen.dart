@@ -76,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: theme.primaryColor,
             foregroundColor: Colors.white,
             elevation: 0,
+            automaticallyImplyLeading: false,
             actions: [
               IconButton(
                 icon: Icon(Icons.edit_rounded),

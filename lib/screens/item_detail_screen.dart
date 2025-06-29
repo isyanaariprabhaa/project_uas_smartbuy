@@ -17,7 +17,7 @@ class ItemDetailScreen extends StatelessWidget {
       nama: item.nama,
       harga: item.harga,
       status: 'Sudah Dibeli',
-      tanggal: item.tanggal,
+      tanggal: DateFormat('dd-MM-yyyy').format(DateTime.now()),
       foto: item.foto,
     );
     await DatabaseHelper.instance.updateItem(updated);
@@ -252,7 +252,7 @@ class ItemDetailScreen extends StatelessWidget {
                   _buildDetailSection(
                     context,
                     icon: Icons.calendar_today_rounded,
-                    label: "Tanggal Ditambahkan",
+                    label: item.status == 'Sudah Dibeli' ? "Tanggal Dibeli" : "Tanggal Ditambahkan",
                     value: DateFormat('dd MMMM yyyy', 'id_ID').format(
                       DateFormat('dd-MM-yyyy').parse(item.tanggal)
                     ),

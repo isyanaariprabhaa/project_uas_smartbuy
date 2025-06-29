@@ -49,6 +49,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
         backgroundColor: theme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body:
           _isLoading
